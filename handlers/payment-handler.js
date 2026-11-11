@@ -1,12 +1,26 @@
 "use strict";
 
 const paymentHelper = require("../lib/payment-helper");
-const { send } = require("../utils/responses");
 
 exports.createPayment = async (req, res, next) => {
   try {
-    const result = await paymentHelper.createPayment(req.body || {});
-    send(res, result);
+    await paymentHelper.createPayment(res, req.body || {}, req.user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPayment = async (req, res, next) => {
+  try {
+    await paymentHelper.getPayment(res, req.params.paymentId);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updatePayment = async (req, res, next) => {
+  try {
+    await paymentHelper.updatePayment(res, req.params.paymentId, req.body || {});
   } catch (err) {
     next(err);
   }

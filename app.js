@@ -4,11 +4,17 @@ const express = require("express");
 const cors = require("cors");
 
 const paymentHandler = require("./handlers/payment-handler");
+const authHandler = require("./handlers/auth-handler");
+const { requireAuth } = require("./middleware/auth");
 
 function createApiRouter() {
   const router = express.Router();
 
-  router.post("/", paymentHandler.createPayment);
+  router.post("/auth/login", authHandler.login);
+  router.post("/create-payment", requireAuth, paymentHandler.createPayment);
+  router.get("/get-payment/:idOrReference", requireAuth, paymentHandler.getPayment);
+  router.put("/update-payment/:idOrReference", requireAuth, paymentHandler.updatePayment);
+  router.patch("/update-payment/:idOrReference", requireAuth, paymentHandler.updatePayment);
 
   return router;
 }
