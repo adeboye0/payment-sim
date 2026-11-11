@@ -33,7 +33,26 @@ const updatePaymentSchema = {
   additionalProperties: false,
   required: ["status"],
   properties: {
-    status: { type: "string", enum: ["pending", "success", "failed", "abandoned"] },
+    status: { type: "string", enum: ["pending", "processing", "success", "failed", "abandoned"] },
+  },
+};
+
+const webhookSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["event", "reference"],
+  properties: {
+    event: { type: "string", enum: ["payment.succeeded", "payment.failed"] },
+    reference: { type: "string", minLength: 1 },
+  },
+};
+
+const webhookRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["payload"],
+  properties: {
+    payload: { type: "string", minLength: 1 },
   },
 };
 
@@ -92,5 +111,7 @@ module.exports = {
   loginSchema,
   createPaymentSchema,
   updatePaymentSchema,
+  webhookSchema,
+  webhookRequestSchema,
   validateSchema,
 };

@@ -3,10 +3,12 @@
 require("dotenv").config();
 
 const { createApp } = require("./app");
+const { start } = require("./jobs/resolve-pending");
+const { port } = require("./config");
 
-const PORT = Number(process.env.PORT || 8080);
 const app = createApp();
+start();
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`payment-sim listening on :${PORT}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`listening on :${port}`);
 });

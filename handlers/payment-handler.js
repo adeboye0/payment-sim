@@ -12,7 +12,7 @@ exports.createPayment = async (req, res, next) => {
 
 exports.getPayment = async (req, res, next) => {
   try {
-    await paymentHelper.getPayment(res, req.params.paymentId);
+    await paymentHelper.getPayment(res, req.params.idOrReference);
   } catch (err) {
     next(err);
   }
@@ -20,7 +20,7 @@ exports.getPayment = async (req, res, next) => {
 
 exports.updatePayment = async (req, res, next) => {
   try {
-    await paymentHelper.updatePayment(res, req.params.paymentId, req.body || {});
+    await paymentHelper.updatePayment(res, req.params.idOrReference, req.body || {});
   } catch (err) {
     next(err);
   }
