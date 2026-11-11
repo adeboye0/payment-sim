@@ -1,5 +1,12 @@
 "use strict";
 
-const payments = [];
+const fs = require("fs");
+const path = require("path");
 
-module.exports = { payments };
+const file = path.join(__dirname, "../data/payments.json");
+fs.mkdirSync(path.dirname(file), { recursive: true });
+
+const payments = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
+const save = () => fs.writeFileSync(file, JSON.stringify(payments, null, 2));
+
+module.exports = { payments, save };
