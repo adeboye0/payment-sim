@@ -41,7 +41,7 @@ describe("api", () => {
 
     const login = await sendRequest("/auth/login", {
       method: "POST",
-      body: { email: config.demoUser.email, password: config.demoUser.password },
+      body: { email: config.demoUsers[0].email, password: config.demoUsers[0].password },
     });
     expect(login.status).toBe(200);
     token = login.body.data.token;
@@ -52,10 +52,20 @@ describe("api", () => {
     if (server) await new Promise((resolve) => server.close(resolve));
   });
 
+  test("logs in the second demo user", async () => {
+    const result = await sendRequest("/auth/login", {
+      method: "POST",
+      body: { email: config.demoUsers[1].email, password: config.demoUsers[1].password },
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.data.user).toEqual({ id: config.demoUsers[1].id, email: config.demoUsers[1].email });
+  });
+
   test("rejects a bad login", async () => {
     const result = await sendRequest("/auth/login", {
       method: "POST",
-      body: { email: config.demoUser.email, password: "wrong-password" },
+      body: { email: config.demoUsers[0].email, password: "wrong-password" },
     });
 
     expect(result.status).toBe(401);
@@ -78,7 +88,7 @@ describe("api", () => {
       amount,
       currency: "USD",
       status: "pending",
-      email: config.demoUser.email,
+      email: config.demoUsers[0].email,
     });
     expect(created.body.data.reference).toMatch(/^PAY-\d+-\d{3}$/);
     expect(created.body.data.checkoutUrl).toBe(`${base}/pay/${created.body.data.reference}`);
