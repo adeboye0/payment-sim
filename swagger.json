@@ -1,0 +1,517 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "payment-sim",
+    "version": "1.0.0",
+    "description": "Simulates creating a payment, paying it on a local page, and settling it with an encrypted webhook."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "tags": [
+    { "name": "Auth" },
+    { "name": "Payments" },
+    { "name": "Pay page" },
+    { "name": "Webhook" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "test@example.com" },
+          "password": { "type": "string", "example": "test-password" }
+        }
+      },
+      "CreatePaymentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["amount"],
+        "properties": {
+          "amount": { "type": "number", "minimum": 0, "exclusiveMinimum": true, "example": 25.5 },
+          "currency": { "type": "string", "enum": ["USD"], "example": "USD" }
+        }
+      },
+      "UpdatePaymentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "success", "failed", "abandoned"]
+          }
+        }
+      },
+      "WebhookRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["payload"],
+        "properties": {
+          "payload": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Encrypted body. Once decrypted it is { event, reference }."
+          }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "amount": { "type": "number" },
+          "currency": { "type": "string", "example": "USD" },
+          "reference": { "type": "string", "example": "PAY-1731430000000-042" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "success", "failed", "abandoned"]
+          },
+          "checkoutUrl": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "LoginData": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "expiresIn": { "type": "string", "example": "2h" },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "email": { "type": "string", "format": "email" }
+            }
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        }
+      },
+      "SuccessPayment": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["success"] },
+          "data": { "$ref": "#/components/schemas/Payment" }
+        }
+      },
+      "SuccessLogin": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["success"] },
+          "data": { "$ref": "#/components/schemas/LoginData" }
+        }
+      },
+      "Failed": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["failed"] },
+          "data": { "$ref": "#/components/schemas/Message" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in as a demo user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token issued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessLogin" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/create-payment": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create a pending payment",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePaymentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment created. data.checkoutUrl opens the pay page.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "400": {
+            "description": "Invalid body, or the same user sent this amount within the last 3 minutes",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/get-payment/{idOrReference}": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get a payment owned by the signed-in user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "idOrReference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "404": {
+            "description": "Not found, or owned by another user",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/update-payment/{idOrReference}": {
+      "put": {
+        "tags": ["Payments"],
+        "summary": "Replace the status of a payment owned by the signed-in user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "idOrReference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePaymentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated payment",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "400": {
+            "description": "Invalid status",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "404": {
+            "description": "Not found, or owned by another user",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Payments"],
+        "summary": "Update the status of a payment owned by the signed-in user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "idOrReference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePaymentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated payment",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "400": {
+            "description": "Invalid status",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "404": {
+            "description": "Not found, or owned by another user",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/pay/{reference}": {
+      "get": {
+        "tags": ["Pay page"],
+        "summary": "Open the pay page",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML pay page",
+            "content": {
+              "text/html": { "schema": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "/pay/{reference}/status": {
+      "get": {
+        "tags": ["Pay page"],
+        "summary": "Read a payment by reference",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/pay/{reference}/confirm": {
+      "post": {
+        "tags": ["Pay page"],
+        "summary": "Start a successful payment",
+        "description": "Sets a pending payment to processing. Five seconds later an encrypted webhook sets it to success. A payment that is no longer pending is returned unchanged.",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment, usually processing",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/pay/{reference}/fail": {
+      "post": {
+        "tags": ["Pay page"],
+        "summary": "Start a failed payment",
+        "description": "Sets a pending payment to processing. Five seconds later an encrypted webhook sets it to failed.",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment, usually processing",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/pay/{reference}/cancel": {
+      "post": {
+        "tags": ["Pay page"],
+        "summary": "Abandon a pending payment",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment abandoned, or already settled and left unchanged",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "409": {
+            "description": "Payment is processing",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/payment": {
+      "post": {
+        "tags": ["Webhook"],
+        "summary": "Settle a payment from an encrypted payload",
+        "description": "payment.succeeded sets status to success. payment.failed sets status to failed. A payment that is already settled is left unchanged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WebhookRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment settled or left unchanged",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SuccessPayment" } }
+            }
+          },
+          "400": {
+            "description": "Invalid envelope or decrypted body",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "401": {
+            "description": "Payload cannot be decrypted",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Failed" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
