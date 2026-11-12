@@ -11,13 +11,13 @@ module.exports = {
   demoUsers: [
     {
       id: "test_id",
-      email: String(process.env.DEMO_EMAIL || "test@test.com"),
-      password: process.env.DEMO_PASSWORD || "password",
+      email: String(process.env.DEMO_EMAIL || "test@example.com"),
+      password: process.env.DEMO_PASSWORD || "test-password",
     },
     {
       id: "test_id_2",
-      email: String(process.env.DEMO_EMAIL_2 || "test2@test.com"),
-      password: process.env.DEMO_PASSWORD_2 || "password",
+      email: String(process.env.DEMO_EMAIL_2 || "test2@example.com"),
+      password: process.env.DEMO_PASSWORD_2 || "test-password",
     },
   ],
 };
