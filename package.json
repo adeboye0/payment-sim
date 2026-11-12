@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev:server": "node --watch server.js"
+    "dev:server": "node --watch server.js",
+    "test": "jest --runInBand"
   },
   "license": "ISC",
   "dependencies": {
@@ -22,5 +23,15 @@
     "moment": "^2.31.0",
     "node-cron": "^4.6.0",
     "short-uuid": "^4.2.2"
+  },
+  "devDependencies": {
+    "axios": "^1.21.1",
+    "jest": "^30.5.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 15000,
+    "setupFiles": ["<rootDir>/tests/setup.js"],
+    "setupFilesAfterEnv": ["<rootDir>/tests/store.js"]
   }
 }

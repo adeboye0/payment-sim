@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const file = path.join(__dirname, "../data/payments.json");
+const file = path.join(__dirname, "../data", path.basename(process.env.PAYMENTS_FILE || "payments.json"));
 fs.mkdirSync(path.dirname(file), { recursive: true });
 
 const payments = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];

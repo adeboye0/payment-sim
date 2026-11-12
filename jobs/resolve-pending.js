@@ -20,7 +20,7 @@ function resolvePending() {
       item.updatedAt = updatedAt;
     });
     save();
-    console.log(`${batch.length} payments updated`);
+    console.log(`${batch.length} payment(s) updated`);
   });
 
   return stalePayments.length;
